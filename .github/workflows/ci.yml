@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint and typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+
+      # Parser suites; the integration suite skips itself without TRY_TS_INTEGRATION.
+      - run: bun test
+
+      # `try` is vendored, not committed: pin fetched at scripts/vendor-try.ts:TRY_REF.
+      - name: Vendor try
+        run: bun run vendor
+
+      - name: Install instrumented-run prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y strace
+          # Ubuntu 24.04 confines unprivileged user namespaces via AppArmor; `try` needs them.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      # Runs in a private mount namespace with nested mounts detached: `try` overlays each
+      # root-level directory separately and the kernel refuses a lowerdir with locked children.
+      - name: Integration tests
+        run: bun run test:integration:ns
