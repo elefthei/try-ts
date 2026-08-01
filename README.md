@@ -21,6 +21,15 @@ await h.commit();            // apply to the real filesystem  (or)
 await h.discard();           // drop the overlay; disk was never touched
 ```
 
+The argument to `create()` is a sandbox *location*, not a working directory — pin it to re-attach
+to the same overlay from a later handle, or from a later process:
+
+```ts
+const pinned = await tryc.create("/tmp/my-box"); // created if missing, re-attached if it exists
+await pinned.instrument("make");                 // traced with strace
+pinned.writes();                                 // every path the build wrote
+```
+
 ## Install
 
 ```sh
@@ -61,7 +70,7 @@ replaces it — `try` itself shells out to `mktemp`, `find`, `getfattr` and `uns
 | `sandbox` | the sandbox directory |
 | `state` | `"open" \| "committed" \| "discarded"` |
 | `runs` | every run staged here, oldest first |
-| `command` / `exitCode` / `stdout` / `stderr` | the **most recent** run |
+| `command` / `exitCode` / `stdout` / `stderr` | the **most recent** run; throw until one has been staged |
 | `traced` | whether any run was instrumented |
 | `try(cmd, opts?)` | stage another command on this sandbox |
 | `instrument(cmd, opts?)` | same, traced |
@@ -126,7 +135,11 @@ then the integration suite through `scripts/private-mounts.sh`) and `.github/wor
   working directory still shows up in `changes()` and still gets committed. Scope deliberately with
   `include`.
 * Sandboxes live under `os.tmpdir()`, which is often tmpfs — a command writing gigabytes writes to
-  RAM. Pass `sandboxRoot` on a disk-backed filesystem for large workloads.
+  RAM. Pass `sandboxRoot`, or a `create(sandbox)` path, on a disk-backed filesystem for large
+  workloads.
+* A sandbox is deleted by `commit()`/`discard()` even when you supplied its path, and two handles
+  opened on one path share its effects without locking — either one's `commit()` pulls the
+  directory out from under the other.
 * Filenames containing newlines break `try`'s own line-oriented summary and commit loops;
   `parseSummary` throws rather than silently under-report.
 * Merging a sandbox that *deletes* a file requires recreating an overlay whiteout by copy, which an
