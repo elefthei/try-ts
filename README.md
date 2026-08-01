@@ -11,7 +11,8 @@ import { TryConsole } from "try-ts";
 
 const tryc = new TryConsole(process.cwd());
 
-const h = await tryc.try('echo "foo" > file.txt');
+const h = await tryc.create();      // opens a sandbox under os.tmpdir(); no runs yet
+await h.try('echo "foo" > file.txt');
 await h.changes();          // [{ path: "/…/file.txt", kind: "added" }] — nothing on disk yet
 await h.try("cat file.txt"); // stages onto the SAME sandbox; sees the write above
 h.stdout;                    // "foo\n"
@@ -48,8 +49,10 @@ replaces it — `try` itself shells out to `mktemp`, `find`, `getfattr` and `uns
 | `unionHelper` | – | `-U PATH` (mergerfs/unionfs) for hosts where overlay mounts fail |
 | `stream` | `false` | tee child output to this process's stdout/stderr |
 
-* `tryc.try(cmd, opts?)` → `Promise<TryHandle>` — fresh sandbox.
-* `tryc.instrument(cmd, opts?)` → `Promise<TryHandle>` — same, traced with `strace`.
+* `tryc.create(sandbox?)` → `Promise<TryHandle>` — opens a sandbox and returns a handle holding no
+  runs; commands are staged with `h.try()` / `h.instrument()`. Given `sandbox`, that directory is
+  used (created if missing, re-attached if it already holds a sandbox); omitted, one is created
+  under `sandboxRoot`. The handle owns the directory either way: `commit()`/`discard()` delete it.
 
 ### `TryHandle`
 
@@ -67,7 +70,7 @@ replaces it — `try` itself shells out to `mktemp`, `find`, `getfattr` and `uns
 | `reads()` / `writes()` / `trace()` | syscall-level view of the traced runs |
 | `commit()` | apply the effects, return what was applied, spend the handle |
 | `discard()` | drop the overlay (idempotent); this *is* the undo |
-| `[Symbol.asyncDispose]` | `await using h = await tryc.try(…)` discards on scope exit |
+| `[Symbol.asyncDispose]` | `await using h = await tryc.create()` discards on scope exit |
 
 `exitCode` is always the *command's* status, recovered through a sandbox-local sentinel file:
 `try -t` overwrites its own exit status, and `try` also exits non-zero for its own setup failures.

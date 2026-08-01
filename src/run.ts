@@ -85,7 +85,7 @@ exit "$__try_ts_status"
 `;
 }
 
-/** The one execution path shared by `TryConsole` (first run) and `TryHandle` (staged runs). */
+/** The one execution path for every run staged by `TryHandle`. */
 export async function execInSandbox(
   ctx: RunContext,
   sandbox: string,

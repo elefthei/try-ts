@@ -23,18 +23,22 @@ export type HandleState = "open" | "committed" | "discarded";
  */
 export class TryHandle {
   #ctx: RunContext;
-  #runs: RunRecord[];
+  #runs: RunRecord[] = [];
   #state: HandleState = "open";
   #trace?: Trace;
 
-  /** @internal Built by `TryConsole`; the sandbox must already hold `runs`' effects. */
+  /** @internal Built by `TryConsole.create()`; the sandbox directory must already exist. */
   constructor(
     ctx: RunContext,
     readonly sandbox: string,
-    runs: RunRecord[],
   ) {
     this.#ctx = ctx;
-    this.#runs = runs;
+  }
+
+  #last(): RunRecord {
+    const run = this.#runs.at(-1);
+    if (run === undefined) throw new TryError("no runs yet: call try() or instrument() first");
+    return run;
   }
 
   /** Every run staged in this sandbox, oldest first. */
@@ -48,20 +52,20 @@ export class TryHandle {
 
   /** The most recent run's command; `runs` holds the full history. */
   get command(): string {
-    return this.#runs.at(-1)!.command;
+    return this.#last().command;
   }
 
   /** The most recent run's exit status — the command's own, never `try`'s. */
   get exitCode(): number {
-    return this.#runs.at(-1)!.exitCode;
+    return this.#last().exitCode;
   }
 
   get stdout(): string {
-    return this.#runs.at(-1)!.stdout;
+    return this.#last().stdout;
   }
 
   get stderr(): string {
-    return this.#runs.at(-1)!.stderr;
+    return this.#last().stderr;
   }
 
   get traced(): boolean {

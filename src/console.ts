@@ -4,8 +4,8 @@ import { resolve } from "node:path";
 import { TryError } from "./errors.ts";
 import { TryHandle } from "./handle.ts";
 import { resolveTry } from "./resolve.ts";
-import { execInSandbox, type RunContext, type RunOptions } from "./run.ts";
-import { createSandbox, removeSandbox } from "./sandbox.ts";
+import type { RunContext } from "./run.ts";
+import { createSandbox, openSandbox } from "./sandbox.ts";
 
 export interface TryConsoleOptions {
   /** Overrides `try` resolution (`$TRY_BIN`, the vendored copy, then `PATH`). */
@@ -62,25 +62,12 @@ export class TryConsole {
     });
   }
 
-  /** Runs `cmd` in a fresh sandbox; nothing reaches the real filesystem until `commit()`. */
-  try(cmd: string, opts?: RunOptions): Promise<TryHandle> {
-    return this.#start(cmd, false, opts);
-  }
-
-  /** Same, but traced with `strace`, so the handle also reports `reads()`/`writes()`. */
-  instrument(cmd: string, opts?: RunOptions): Promise<TryHandle> {
-    return this.#start(cmd, true, opts);
-  }
-
-  async #start(cmd: string, trace: boolean, opts?: RunOptions): Promise<TryHandle> {
-    const sandbox = await createSandbox(this.#sandboxRoot);
-    try {
-      // The console owns the sandbox it just created, so a setup failure must not leak it.
-      const record = await execInSandbox(this.context, sandbox, cmd, 0, trace, opts);
-      return new TryHandle(this.context, sandbox, [record]);
-    } catch (error) {
-      await removeSandbox(sandbox);
-      throw error;
-    }
+  /**
+   * Opens a sandbox and returns a handle with no runs yet. Pass `sandbox` to pin the location or
+   * re-attach to an existing sandbox; omitted, one is created under `sandboxRoot`.
+   */
+  async create(sandbox?: string): Promise<TryHandle> {
+    const dir = sandbox === undefined ? await createSandbox(this.#sandboxRoot) : await openSandbox(sandbox);
+    return new TryHandle(this.context, dir);
   }
 }
