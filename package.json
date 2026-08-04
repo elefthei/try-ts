@@ -1,6 +1,6 @@
 {
   "name": "@elefthei/try-ts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Bun/TypeScript SDK for speculative shell execution: run commands in an overlay sandbox, inspect the filesystem changes, then commit or discard",
   "keywords": [
     "try",
