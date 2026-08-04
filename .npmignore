@@ -1,0 +1,2 @@
+# Present so npm ignores .gitignore (which excludes vendor/, shipped in the tarball).
+node_modules/

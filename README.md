@@ -7,7 +7,7 @@ sandboxes — then either apply the whole thing or throw it away. Nothing touche
 filesystem until `commit()`.
 
 ```ts
-import { TryConsole } from "try-ts";
+import { TryConsole } from "@elefthei/try-ts";
 
 const tryc = new TryConsole(process.cwd());
 
@@ -30,7 +30,51 @@ await pinned.instrument("make");                 // traced with strace
 pinned.writes();                                 // every path the build wrote
 ```
 
+## Instrumented runs
+
+`instrument()` runs the command under `strace` (`try -t`) and records the paths it touched.
+`reads()` / `writes()` are the union over every *traced* run in the sandbox, sorted and
+de-duplicated; plain `try()` runs contribute nothing to them.
+
+```ts
+const h = await tryc.create();
+
+await h.try("printf 'b\\na\\n' > in.txt");    // untraced: staged, invisible to the trace
+await h.instrument("sort in.txt > out.txt");  // traced
+
+h.traced;          // true
+h.reads().length;  // ~110 — the whole read footprint: /etc/ld.so.cache, libc, locales, PATH probes
+h.writes();        // ["/…/out.txt"] — the only file the command created
+
+const cwd = process.cwd();
+h.reads().filter((p) => p.startsWith(cwd));
+// ["/…", "/…/in.txt", "/…/node_modules", …]   ← in.txt is there; the untraced write that made it is not
+
+await h.changes();
+// [{ path: "/…/out.txt", kind: "added" }, { path: "/…/in.txt", kind: "added" }]
+```
+
+`reads()`/`writes()` and `changes()` answer different questions: the trace is a syscall-level
+record of what the process *touched* (both directions, including paths it only opened), while
+`changes()` is the overlay diff `commit()` will apply — so `in.txt` shows up in `changes()` but
+its untraced write is absent from `writes()`. `trace()` returns `{ reads, writes }` in one object
+and is synchronous: it is captured at run time and survives `commit()`/`discard()`.
+
+Reads are noisy by construction — a dynamically linked binary reads the loader cache, its
+libraries and the locale archive before it reads your file — so filter by prefix. The SDK's own
+exit sentinel and `try`'s raw strace log are already stripped.
+
+Instrumented runs additionally need `strace` and `python3`; that is checked before the sandbox is
+built, so a missing tool is a `TryError` rather than an empty trace.
+
 ## Install
+
+```sh
+bun add @elefthei/try-ts
+```
+
+The published tarball ships `vendor/try` and `vendor/try-parse-trace`; from a git checkout fetch
+them yourself:
 
 ```sh
 bun install

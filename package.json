@@ -1,11 +1,41 @@
 {
-  "name": "try-ts",
+  "name": "@elefthei/try-ts",
   "version": "0.1.0",
+  "description": "Bun/TypeScript SDK for speculative shell execution: run commands in an overlay sandbox, inspect the filesystem changes, then commit or discard",
+  "keywords": [
+    "try",
+    "binpash",
+    "sandbox",
+    "overlayfs",
+    "speculative-execution",
+    "shell",
+    "bun",
+    "strace"
+  ],
+  "homepage": "https://github.com/elefthei/try-ts#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elefthei/try-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/elefthei/try-ts/issues"
+  },
+  "license": "MIT",
+  "author": "Lef Ioannidis",
   "type": "module",
   "module": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "vendor",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "vendor": "bun run scripts/vendor-try.ts",
@@ -15,7 +45,8 @@
     "test": "bun test",
     "test:integration": "TRY_TS_INTEGRATION=1 bun test --timeout 120000",
     "test:integration:ns": "scripts/private-mounts.sh env TRY_TS_INTEGRATION=1 bun test --timeout 120000",
-    "typecheck": "bunx tsc --noEmit"
+    "typecheck": "bunx tsc --noEmit",
+    "prepack": "bun run scripts/vendor-try.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
